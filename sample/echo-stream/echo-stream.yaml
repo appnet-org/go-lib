@@ -33,7 +33,7 @@ spec:
         app: frontend
     spec:
       containers:
-      - image: xzhu0027/echo-frontend-grpc
+      - image: <docker-username>/echo-frontend-stream-grpc:latest
         name: frontend-grpc
       serviceAccountName: echo-frontend
   selector:
@@ -54,7 +54,6 @@ metadata:
   labels:
     app: server
 spec:
-  clusterIP: 10.96.77.76
   ports:
   - name: server
     port: 9000
@@ -76,7 +75,7 @@ spec:
         app: server
     spec:
       containers:
-      - image: xzhu0027/echo-server-grpc
+      - image: <docker-username>/echo-server-stream-grpc:latest
         name: server-grpc
       serviceAccountName: echo-server
   selector:
