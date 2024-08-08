@@ -15,6 +15,7 @@ import (
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -26,6 +27,7 @@ var pluginPrefix string
 var pluginInterface interceptInit
 var versionNumber int
 var versionNumberLock sync.RWMutex
+var sharedData = NewSharedData()
 
 type interceptInit interface {
 	ClientInterceptor() grpc.UnaryClientInterceptor
@@ -50,9 +52,13 @@ func init() {
 			time.Sleep(1000 * time.Millisecond)
 		}
 	}()
+
+	sharedData.Set("exampleKey", "exampleValue")
+	balancer.Register(NewBuilder(sharedData))
 }
 
 func ClientInterceptor(pluginPrefixPath string) grpc.UnaryClientInterceptor {
+	fmt.Printf("ClientInterceptor called with %s\n", pluginPrefixPath)
 	if pluginPrefix != pluginPrefixPath {
 		updateChains(pluginPrefixPath)
 	}
@@ -64,6 +70,9 @@ func ClientInterceptor(pluginPrefixPath string) grpc.UnaryClientInterceptor {
 
 		// Add config-version header
 		ctx = metadata.AppendToOutgoingContext(ctx, "appnet-config-version", strconv.Itoa(getVersionNumber()))
+
+		// Example usage: getting a value from shared data
+		sharedData.Set("testKey", "testValue")
 
 		if currentClientChain == nil {
 			return invoker(ctx, method, req, reply, cc, opts...)
@@ -160,5 +169,6 @@ func loadInterceptors(interceptorPluginPath string) interceptInit {
 		panic("error casting interceptInit")
 	}
 
+	fmt.Printf("Loaded plugin: %s\n", interceptorPluginPath)
 	return interceptInit
 }
