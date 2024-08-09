@@ -2,7 +2,6 @@ package plugininterceptor
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -22,12 +21,14 @@ import (
 // TODO(nikolabo): synchronize access to these?
 var currentClientChain grpc.UnaryClientInterceptor
 var currentServerChain grpc.UnaryServerInterceptor
-var highestFile string
-var pluginPrefix string
+var highestInterceptorFile string
+var highestLBFile string
+var InterceptorPluginPrefix string
+var LBPluginPrefix string
 var pluginInterface interceptInit
 var versionNumber int
 var versionNumberLock sync.RWMutex
-var sharedData = NewSharedData()
+var sharedData = &sync.Map{}
 
 type interceptInit interface {
 	ClientInterceptor() grpc.UnaryClientInterceptor
@@ -46,23 +47,26 @@ func init() {
 
 	go func() {
 		for {
-			if pluginPrefix != "" {
-				updateChains(pluginPrefix)
+			if InterceptorPluginPrefix != "" || LBPluginPrefix != "" {
+				updateChains(InterceptorPluginPrefix)
+				updateLB(LBPluginPrefix)
 			}
 			time.Sleep(1000 * time.Millisecond)
 		}
 	}()
 
-	sharedData.Set("exampleKey", "exampleValue")
+	// Register the default appnet balancer (round robin)
 	balancer.Register(NewBuilder(sharedData))
 }
 
-func ClientInterceptor(pluginPrefixPath string) grpc.UnaryClientInterceptor {
-	fmt.Printf("ClientInterceptor called with %s\n", pluginPrefixPath)
-	if pluginPrefix != pluginPrefixPath {
-		updateChains(pluginPrefixPath)
+func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) grpc.UnaryClientInterceptor {
+	// Interceptor and lb plugins should be compiled/updated at the same time
+	if InterceptorPluginPrefix != InterceptorPluginPrefixPath || LBPluginPrefix != LBPluginPrefixPath {
+		updateChains(InterceptorPluginPrefixPath)
+		updateLB(LBPluginPrefixPath)
 	}
-	pluginPrefix = pluginPrefixPath
+	InterceptorPluginPrefix = InterceptorPluginPrefixPath
+	LBPluginPrefix = LBPluginPrefixPath
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		// Add unique id to rpcs
 		rpc_id := rand.Uint32()
@@ -70,9 +74,6 @@ func ClientInterceptor(pluginPrefixPath string) grpc.UnaryClientInterceptor {
 
 		// Add config-version header
 		ctx = metadata.AppendToOutgoingContext(ctx, "appnet-config-version", strconv.Itoa(getVersionNumber()))
-
-		// Example usage: getting a value from shared data
-		sharedData.Set("testKey", "testValue")
 
 		if currentClientChain == nil {
 			return invoker(ctx, method, req, reply, cc, opts...)
@@ -82,11 +83,11 @@ func ClientInterceptor(pluginPrefixPath string) grpc.UnaryClientInterceptor {
 	}
 }
 
-func ServerInterceptor(pluginPrefixPath string) grpc.UnaryServerInterceptor {
-	if pluginPrefix != pluginPrefixPath {
-		updateChains(pluginPrefixPath)
+func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInterceptor {
+	if InterceptorPluginPrefix != InterceptorPluginPrefixPath {
+		updateChains(InterceptorPluginPrefixPath)
 	}
-	pluginPrefix = pluginPrefixPath
+	InterceptorPluginPrefix = InterceptorPluginPrefixPath
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if currentServerChain == nil {
 			return handler(ctx, req)
@@ -103,7 +104,7 @@ func getVersionNumber() int {
 }
 
 func updateVersionNumberFromFile(filePath string) {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
@@ -125,23 +126,43 @@ func updateVersionNumberFromFile(filePath string) {
 	}
 }
 
-func updateChains(prefix string) {
-	var highestSeen string = highestFile
+func updateLB(prefix string) {
+	var highestSeenLB string = highestLBFile
 
 	dir, prefix := filepath.Split(prefix)
 	files, _ := os.ReadDir(dir)
 
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), prefix) {
-			if file.Name() > highestSeen {
-				highestSeen = file.Name()
+			if file.Name() > highestSeenLB {
+				highestSeenLB = file.Name()
 			}
 		}
 	}
 
-	if highestSeen != highestFile {
-		highestFile = highestSeen
-		intercept := loadInterceptors(dir + highestFile)
+	if highestSeenLB != highestLBFile {
+		highestLBFile = highestSeenLB
+		loadLoadBalancerPlugin(dir + highestLBFile)
+	}
+}
+
+func updateChains(prefix string) {
+	var highestSeenInterceptor string = highestInterceptorFile
+
+	dir, prefix := filepath.Split(prefix)
+	files, _ := os.ReadDir(dir)
+
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), prefix) {
+			if file.Name() > highestSeenInterceptor {
+				highestSeenInterceptor = file.Name()
+			}
+		}
+	}
+
+	if highestSeenInterceptor != highestInterceptorFile {
+		highestInterceptorFile = highestSeenInterceptor
+		intercept := loadInterceptorsPlugin(dir + highestInterceptorFile)
 		if pluginInterface != nil {
 			pluginInterface.Kill()
 		}
@@ -151,7 +172,7 @@ func updateChains(prefix string) {
 	}
 }
 
-func loadInterceptors(interceptorPluginPath string) interceptInit {
+func loadInterceptorsPlugin(interceptorPluginPath string) interceptInit {
 	// TODO: return err instead of panicking
 	interceptorPlugin, err := plugin.Open(interceptorPluginPath)
 	if err != nil {
@@ -171,4 +192,26 @@ func loadInterceptors(interceptorPluginPath string) interceptInit {
 
 	fmt.Printf("Loaded plugin: %s\n", interceptorPluginPath)
 	return interceptInit
+}
+
+func loadLoadBalancerPlugin(lbPluginPath string) {
+	// TODO: return err instead of panicking
+	p, err := plugin.Open(lbPluginPath)
+	if err != nil {
+		panic("error loading load balancer plugin so")
+	}
+
+	// Lookup the NewBuilder symbol (function)
+	symbol, err := p.Lookup("NewBuilder")
+	if err != nil {
+		panic("error locating NewBuilder in plugin so")
+	}
+
+	// Assert that the symbol is of the correct type (function with expected signature)
+	newBuilderFunc, ok := symbol.(func(*sync.Map) balancer.Builder)
+	if !ok {
+		panic("error casting NewBuilder")
+	}
+
+	balancer.Register(newBuilderFunc(sharedData))
 }

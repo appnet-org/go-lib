@@ -21,8 +21,9 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	var conn *grpc.ClientConn
 
 	conn, err := grpc.Dial(
-		"server.default.svc.cluster.local:9000",
-		grpc.WithUnaryInterceptor(interceptor.ClientInterceptor("/interceptors/frontend")),
+		":9000",
+		grpc.WithUnaryInterceptor(interceptor.ClientInterceptor("/interceptors/frontend", "/interceptors/lb")),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"appnet_lb":{}}]}`),
 		grpc.WithInsecure(),
 	)
 	if err != nil {

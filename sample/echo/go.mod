@@ -20,4 +20,6 @@ require (
 
 replace github.com/appnet-org/golib/sample/echo-pb => ../echo-pb
 
+replace github.com/appnet-org/golib/sample/echo/roundrobinlb => ./roundrobinlb
+
 replace github.com/appnet-org/golib/interceptor => ../../interceptor

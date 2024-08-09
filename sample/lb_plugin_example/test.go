@@ -16,10 +16,12 @@
  *
  */
 
-package plugininterceptor
+package main
 
 import (
+	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"sync"
 	"sync/atomic"
 
@@ -44,7 +46,7 @@ type appnetlbPickerBuilder struct {
 }
 
 func (b *appnetlbPickerBuilder) Build(info base.PickerBuildInfo) balancer.Picker {
-	logger.Warningf("appnetlbPicker: Build called with info: %v", info)
+	logger.Warningf("testlbPicker: Build called with info: %v", info)
 	if len(info.ReadySCs) == 0 {
 		return base.NewErrPicker(balancer.ErrNoSubConnAvailable)
 	}
@@ -75,7 +77,28 @@ type appnetlbPicker struct {
 func (p *appnetlbPicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 	md, _ := metadata.FromOutgoingContext(info.Ctx)
 
-	logger.Warningf("appnetlbPicker: picker called with md: %v", md)
+	logger.Warningf("testlbPicker: picker called with md: %v", md)
+
+	resp, _ := http.Get("http://127.0.0.1:7379/PING")
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	logger.Warningf("testlbPicker: picker called with body: %v", string(body))
+
+	// Example usage: getting a value from shared data
+	if value, exists := p.sharedData.Load("exampleKey"); exists {
+		logger.Warningf("testlbPicker: shared data value: %v", value)
+	} else {
+		logger.Warningf("roundrobinlbPicker: exampleKey not found")
+	}
+
+	// Example usage: getting a value from shared data
+	if value, exists := p.sharedData.Load("testKey"); exists {
+		logger.Warningf("testlbPicker: shared data value: %v", value)
+	} else {
+		logger.Warningf("testlbPicker: testKey1 not found")
+	}
 
 	subConnsLen := uint32(len(p.subConns))
 	nextIndex := atomic.AddUint32(&p.next, 1)
