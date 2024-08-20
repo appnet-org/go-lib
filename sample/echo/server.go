@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"golang.org/x/net/context"
@@ -27,11 +26,16 @@ func (s *server) Echo(ctx context.Context, x *echo.Msg) (*echo.Msg, error) {
 		time.Sleep(30 * time.Second)
 	}
 
-	hostname, _ := os.Hostname()
-	appendedBody := fmt.Sprintf("You've hit %s\n", hostname)
+	// hostname, _ := os.Hostname()
+	// appendedBody := fmt.Sprintf("You've hit %s\n", hostname)
+	// msg := &echo.Msg{
+	// 	Body: appendedBody,
+	// }
+
 	msg := &echo.Msg{
-		Body: appendedBody,
+		Body: x.GetBody(),
 	}
+
 	return msg, nil
 }
 

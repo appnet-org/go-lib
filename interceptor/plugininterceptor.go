@@ -106,7 +106,13 @@ func getVersionNumber() int {
 func updateVersionNumberFromFile(filePath string) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Println("Error reading file:", err)
+		if os.IsNotExist(err) {
+			versionNumberLock.Lock()
+			defer versionNumberLock.Unlock()
+			versionNumber = -1
+		} else {
+			fmt.Println("Error reading file:", err)
+		}
 		return
 	}
 
@@ -121,7 +127,6 @@ func updateVersionNumberFromFile(filePath string) {
 	defer versionNumberLock.Unlock()
 
 	if versionNumber != newVersion {
-		// fmt.Printf("Version number updated from %d to %d\n", versionNumber, newVersion)
 		versionNumber = newVersion
 	}
 }

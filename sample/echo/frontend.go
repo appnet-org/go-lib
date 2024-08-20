@@ -21,7 +21,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	var conn *grpc.ClientConn
 
 	conn, err := grpc.Dial(
-		":9000",
+		"server:9000",
 		grpc.WithUnaryInterceptor(interceptor.ClientInterceptor("/interceptors/frontend", "/interceptors/lb")),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"appnet_lb":{}}]}`),
 		grpc.WithInsecure(),
@@ -46,10 +46,10 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	// Make sure to pass the context (ctx) which includes the metadata
 	response, err := c.Echo(ctx, &message)
 	if err != nil {
-		fmt.Fprintf(writer, "Echo server returns an error.\n")
+		fmt.Fprintf(writer, "Echo server returns an error: %s\n", err)
 		log.Printf("Error when calling echo: %s", err)
 	} else {
-		fmt.Fprintf(writer, "%s", response.Body)
+		fmt.Fprintf(writer, "Response from server: %s\n", response.Body)
 		log.Printf("Response from server: %s", response.Body)
 	}
 }
