@@ -72,6 +72,9 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 		rpc_id := rand.Uint32()
 		ctx = metadata.AppendToOutgoingContext(ctx, "appnet-rpc-id", strconv.FormatUint(uint64(rpc_id), 10))
 
+		// temp hack
+		ctx = metadata.AppendToOutgoingContext(ctx, "shard-key", strconv.FormatUint(rand.Uint64N(800), 10))
+
 		// Add config-version header
 		ctx = metadata.AppendToOutgoingContext(ctx, "appnet-config-version", strconv.Itoa(getVersionNumber()))
 
