@@ -206,6 +206,7 @@ func loadLoadBalancerPlugin(lbPluginPath string) {
 	// TODO: return err instead of panicking
 	p, err := plugin.Open(lbPluginPath)
 	if err != nil {
+		fmt.Printf("loading error: %v\n", err)
 		panic("error loading load balancer plugin so")
 	}
 
@@ -221,5 +222,6 @@ func loadLoadBalancerPlugin(lbPluginPath string) {
 		panic("error casting NewBuilder")
 	}
 
+	fmt.Printf("Loaded balancer plugin: %s\n", lbPluginPath)
 	balancer.Register(newBuilderFunc(sharedData))
 }

@@ -1,4 +1,4 @@
-module appnet.wiki/test
+module appnet.wiki/servicerouter
 
 go 1.22.1
 
