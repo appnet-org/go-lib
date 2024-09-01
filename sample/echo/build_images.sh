@@ -16,11 +16,11 @@ sudo docker build --tag echo-frontend:latest -f Dockerfile-frontend ../..
 sudo docker build --tag echo-server:latest -f Dockerfile-server ../..
 
 # Tag the images
-sudo docker tag echo-frontend  <docker-username>/echo-frontend-grpc:latest
-sudo docker tag echo-server  <docker-username>/echo-server-grpc:latest
+sudo docker tag echo-frontend  appnetorg/echo-frontend-grpc:latest
+sudo docker tag echo-server  appnetorg/echo-server-grpc:latest
 
 # Push the images to the registry
-sudo docker push  <docker-username>/echo-frontend-grpc:latest
-sudo docker push  <docker-username>/echo-server-grpc:latest
+sudo docker push  appnetorg/echo-frontend-grpc:latest
+sudo docker push  appnetorg/echo-server-grpc:latest
 
 set +ex

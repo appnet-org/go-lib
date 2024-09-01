@@ -26,7 +26,7 @@ spec:
         app: frontend
     spec:
       containers:
-      - image: <docker-username>/echo-frontend-grpc
+      - image: appnetorg/echo-frontend-grpc
         name: frontend-grpc
   selector:
     matchLabels:
@@ -60,7 +60,7 @@ spec:
         app: server
     spec:
       containers:
-      - image: <docker-username>/echo-server-grpc
+      - image: appnetorg/echo-server-grpc
         name: server-grpc
         volumeMounts:
         - name: server-storage

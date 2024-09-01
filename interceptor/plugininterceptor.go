@@ -38,7 +38,7 @@ type interceptInit interface {
 
 func init() {
 	go func() {
-		filePath := "/etc/config-version"
+		filePath := "/etc/appnet/config-version"
 		for {
 			updateVersionNumberFromFile(filePath)
 			time.Sleep(1000 * time.Millisecond)
