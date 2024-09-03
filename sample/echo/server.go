@@ -45,7 +45,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ServerInterceptor("/interceptors/server")))
+	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ServerInterceptor("/appnet/interceptors/server")))
 	fmt.Printf("Starting server pod at port 9000\n")
 
 	echo.RegisterEchoServiceServer(s, &server{})
