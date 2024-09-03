@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/balancer"
@@ -65,7 +64,10 @@ func (b *appnetlbPickerBuilder) Build(info base.PickerBuildInfo) balancer.Picker
 		// load to the first server in the list.
 		next:       uint32(rand.Intn(len(scs))),
 		sharedData: b.sharedData,
-		loadMap:    make(map[int]map[int]float64),
+		loadMap: make(map[int](struct {
+			load int
+			ts   time.Time
+		})),
 	}
 }
 
@@ -98,6 +100,10 @@ func randomSelect(list []int, n int) []int {
 	return selected
 }
 
+func timeDiff(current, last time.Time) time.Duration {
+	return current.Sub(last)
+}
+
 func (p *appnetlbPicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 	md, _ := metadata.FromOutgoingContext(info.Ctx)
 
@@ -105,7 +111,12 @@ func (p *appnetlbPicker) Pick(info balancer.PickInfo) (balancer.PickResult, erro
 	logger.Warningf("testlbPicker: picker called with shard-key: %v", md["shard-key"])
 
 	url := fmt.Sprintf("http://10.96.88.99:8080/getReplica?key=%v&service=ServiceB", md["shard-key"][0])
-	resp, _ := http.Get(url)
+	resp, err := http.Get(url)
+	if err != nil {
+		// handle the error
+		logger.Warningf("Error getting response: %v", err)
+		return balancer.PickResult{}, err
+	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -131,19 +142,73 @@ func (p *appnetlbPicker) Pick(info balancer.PickInfo) (balancer.PickResult, erro
 	currentTime := time.Now()
 	epsilon := 10 * time.Second
 	for _, backend := range selected {
+		resultTuple, exist := p.loadMap[backend]
+		needToProbe := false
+		if !exist {
+			needToProbe = true
+		} else {
+			_, lastTs := resultTuple.load, resultTuple.ts
+			freshness := timeDiff(currentTime, lastTs) - epsilon
+			if freshness <= 0 {
+				needToProbe = true
+			}
+		}
 
-		backendLoad, lastTs := get(loadMap, backend)
-		freshness := timeDiff(currentTime, lastTs) - epsilon
+		if needToProbe {
+			// backendLoad, lastTs = get(loadMapGlobal, backend)
+			// set(loadMap, backend, backendLoad, lastTs)
 
-		if freshness <= 0 {
-			backendLoad, lastTs = get(loadMapGlobal, backend)
-			set(loadMap, backend, backendLoad, lastTs)
+			// How to get backendLoad and lastTs?
+			// curl "http://10.96.88.97/getLoadInfo?service-name=my-service&replica-ids=0,1,2"
+			// {"0":{"load":7,"timestamp":1724368802.8939054},"1":{"load":5,"timestamp":1724368802.8939054},"2":{"load":5,"timestamp":1724368802.8939054}}
+
+			url := fmt.Sprintf("http://10.96.88.97/getLoadInfo?service-name=my-service&replica-ids=%v", backend)
+			resp, err := http.Get(url)
+			if err != nil {
+				logger.Warningf("Error getting load info: %v", err)
+				continue
+			}
+			defer resp.Body.Close()
+
+			body, _ := ioutil.ReadAll(resp.Body)
+
+			// Define a structure to hold the JSON response
+			var result struct {
+				Load      int     `json:"load"`
+				Timestamp float64 `json:"timestamp"`
+			}
+
+			// Parse the JSON response
+			if err := json.Unmarshal(body, &result); err != nil {
+				// print the response as a string
+				logger.Warningf("Error parsing JSON: %v", string(body))
+				panic("Error parsing JSON")
+			}
+
+			backendLoad, lastTs := result.Load, time.Unix(int64(result.Timestamp), 0)
+			p.loadMap[backend] = struct {
+				load int
+				ts   time.Time
+			}{backendLoad, lastTs}
 		}
 	}
 
-	subConnsLen := uint32(len(p.subConns))
-	nextIndex := atomic.AddUint32(&p.next, 1)
+	selectedServer := 0
+	minLoad := 1000000000
 
-	sc := p.subConns[nextIndex%subConnsLen]
+	for replicaId := range result.ReplicaID {
+		// if p.loadMap has the load info for replicaId
+		if _, exist := p.loadMap[replicaId]; exist {
+			if p.loadMap[replicaId].load < minLoad {
+				selectedServer = replicaId
+				minLoad = p.loadMap[replicaId].load
+			}
+		}
+	}
+
+	// subConnsLen := uint32(len(p.subConns))
+	// nextIndex := atomic.AddUint32(&p.next, 1)
+
+	sc := p.subConns[selectedServer]
 	return balancer.PickResult{SubConn: sc}, nil
 }
