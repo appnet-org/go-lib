@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
@@ -15,9 +16,13 @@ import (
 
 type server struct {
 	echo.UnimplementedEchoServiceServer
+	requestCount uint64 // Use an atomic uint64 to track the request count
 }
 
 func (s *server) Echo(ctx context.Context, x *echo.Msg) (*echo.Msg, error) {
+	// Atomically increment the request count
+	atomic.AddUint64(&s.requestCount, 1)
+
 	log.Printf("Server got: [%s]", x.GetBody())
 
 	// Check if the message contains "sleep"
@@ -26,17 +31,22 @@ func (s *server) Echo(ctx context.Context, x *echo.Msg) (*echo.Msg, error) {
 		time.Sleep(30 * time.Second)
 	}
 
-	// hostname, _ := os.Hostname()
-	// appendedBody := fmt.Sprintf("You've hit %s\n", hostname)
-	// msg := &echo.Msg{
-	// 	Body: appendedBody,
-	// }
-
 	msg := &echo.Msg{
 		Body: x.GetBody(),
 	}
 
 	return msg, nil
+}
+
+func (s *server) logRequestCount() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Atomically load the request count
+		count := atomic.LoadUint64(&s.requestCount)
+		log.Printf("Total Echo requests received: %d", count)
+	}
 }
 
 func main() {
@@ -45,11 +55,16 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ServerInterceptor("/appnet/interceptors/server")))
+	srv := &server{}
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ServerInterceptor("/appnet/interceptors/server")))
+
+	// Start the request count logging in a separate goroutine
+	go srv.logRequestCount()
+
 	fmt.Printf("Starting server pod at port 9000\n")
 
-	echo.RegisterEchoServiceServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
+	echo.RegisterEchoServiceServer(grpcServer, srv)
+	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

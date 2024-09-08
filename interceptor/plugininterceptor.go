@@ -22,7 +22,8 @@ import (
 var currentClientChain grpc.UnaryClientInterceptor
 var currentServerChain grpc.UnaryServerInterceptor
 var highestInterceptorFile string
-var highestLBFile string
+
+// var highestLBFile string
 var InterceptorPluginPrefix string
 var LBPluginPrefix string
 var pluginInterface interceptInit
@@ -49,7 +50,7 @@ func init() {
 		for {
 			if InterceptorPluginPrefix != "" || LBPluginPrefix != "" {
 				updateChains(InterceptorPluginPrefix)
-				updateLB(LBPluginPrefix)
+				// updateLB(LBPluginPrefix)
 			}
 			time.Sleep(1000 * time.Millisecond)
 		}
@@ -63,7 +64,7 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 	// Interceptor and lb plugins should be compiled/updated at the same time
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath || LBPluginPrefix != LBPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
-		updateLB(LBPluginPrefixPath)
+		// updateLB(LBPluginPrefixPath)
 	}
 	InterceptorPluginPrefix = InterceptorPluginPrefixPath
 	LBPluginPrefix = LBPluginPrefixPath
@@ -134,25 +135,25 @@ func updateVersionNumberFromFile(filePath string) {
 	}
 }
 
-func updateLB(prefix string) {
-	var highestSeenLB string = highestLBFile
+// func updateLB(prefix string) {
+// 	var highestSeenLB string = highestLBFile
 
-	dir, prefix := filepath.Split(prefix)
-	files, _ := os.ReadDir(dir)
+// 	dir, prefix := filepath.Split(prefix)
+// 	files, _ := os.ReadDir(dir)
 
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), prefix) {
-			if file.Name() > highestSeenLB {
-				highestSeenLB = file.Name()
-			}
-		}
-	}
+// 	for _, file := range files {
+// 		if strings.HasPrefix(file.Name(), prefix) {
+// 			if file.Name() > highestSeenLB {
+// 				highestSeenLB = file.Name()
+// 			}
+// 		}
+// 	}
 
-	if highestSeenLB != highestLBFile {
-		highestLBFile = highestSeenLB
-		loadLoadBalancerPlugin(dir + highestLBFile)
-	}
-}
+// 	if highestSeenLB != highestLBFile {
+// 		highestLBFile = highestSeenLB
+// 		loadLoadBalancerPlugin(dir + highestLBFile)
+// 	}
+// }
 
 func updateChains(prefix string) {
 	var highestSeenInterceptor string = highestInterceptorFile
@@ -202,26 +203,26 @@ func loadInterceptorsPlugin(interceptorPluginPath string) interceptInit {
 	return interceptInit
 }
 
-func loadLoadBalancerPlugin(lbPluginPath string) {
-	// TODO: return err instead of panicking
-	p, err := plugin.Open(lbPluginPath)
-	if err != nil {
-		fmt.Printf("loading error: %v\n", err)
-		panic("error loading load balancer plugin so")
-	}
+// func loadLoadBalancerPlugin(lbPluginPath string) {
+// 	// TODO: return err instead of panicking
+// 	p, err := plugin.Open(lbPluginPath)
+// 	if err != nil {
+// 		fmt.Printf("loading error: %v\n", err)
+// 		panic("error loading load balancer plugin so")
+// 	}
 
-	// Lookup the NewBuilder symbol (function)
-	symbol, err := p.Lookup("NewBuilder")
-	if err != nil {
-		panic("error locating NewBuilder in plugin so")
-	}
+// 	// Lookup the NewBuilder symbol (function)
+// 	symbol, err := p.Lookup("NewBuilder")
+// 	if err != nil {
+// 		panic("error locating NewBuilder in plugin so")
+// 	}
 
-	// Assert that the symbol is of the correct type (function with expected signature)
-	newBuilderFunc, ok := symbol.(func(*sync.Map) balancer.Builder)
-	if !ok {
-		panic("error casting NewBuilder")
-	}
+// 	// Assert that the symbol is of the correct type (function with expected signature)
+// 	newBuilderFunc, ok := symbol.(func(*sync.Map) balancer.Builder)
+// 	if !ok {
+// 		panic("error casting NewBuilder")
+// 	}
 
-	fmt.Printf("Loaded balancer plugin: %s\n", lbPluginPath)
-	balancer.Register(newBuilderFunc(sharedData))
-}
+// 	fmt.Printf("Loaded balancer plugin: %s\n", lbPluginPath)
+// 	balancer.Register(newBuilderFunc(sharedData))
+// }

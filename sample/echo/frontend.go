@@ -23,7 +23,7 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	conn, err := grpc.Dial(
 		"server:9000",
 		grpc.WithUnaryInterceptor(interceptor.ClientInterceptor("/appnet/interceptors/frontend", "/appnet/interceptors/lb")),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"appnet_lb":{}}]}`),
+		// grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"appnet_lb":{}}]}`),
 		grpc.WithInsecure(),
 	)
 	if err != nil {
