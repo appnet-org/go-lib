@@ -43,8 +43,11 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 		Body: requestBody,
 	}
 
+	var header metadata.MD
+
 	// Make sure to pass the context (ctx) which includes the metadata
-	response, err := c.Echo(ctx, &message)
+	response, err := c.Echo(ctx, &message, grpc.Header(&header))
+
 	if err != nil {
 		fmt.Fprintf(writer, "Echo server returns an error: %s\n", err)
 		log.Printf("Error when calling echo: %s", err)

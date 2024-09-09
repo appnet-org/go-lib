@@ -93,6 +93,11 @@ func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInter
 	}
 	InterceptorPluginPrefix = InterceptorPluginPrefixPath
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		md, _ := metadata.FromIncomingContext(ctx)
+
+		header := metadata.Pairs("appnet-rpc-id", md["appnet-rpc-id"][0])
+		grpc.SendHeader(ctx, header)
+
 		if currentServerChain == nil {
 			return handler(ctx, req)
 		}
