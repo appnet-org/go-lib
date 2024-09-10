@@ -95,8 +95,11 @@ func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInter
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		md, _ := metadata.FromIncomingContext(ctx)
 
-		header := metadata.Pairs("appnet-rpc-id", md["appnet-rpc-id"][0])
-		grpc.SendHeader(ctx, header)
+		header_rpc_id := metadata.Pairs("appnet-rpc-id", md["appnet-rpc-id"][0])
+		grpc.SendHeader(ctx, header_rpc_id)
+
+		header_grpc_status := metadata.Pairs("grpc-status", "0")
+		grpc.SendHeader(ctx, header_grpc_status)
 
 		if currentServerChain == nil {
 			return handler(ctx, req)
