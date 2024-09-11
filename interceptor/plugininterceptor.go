@@ -61,6 +61,7 @@ func init() {
 }
 
 func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) grpc.UnaryClientInterceptor {
+	fmt.Println("ClientInterceptor called with", InterceptorPluginPrefixPath, LBPluginPrefixPath)
 	// Interceptor and lb plugins should be compiled/updated at the same time
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath || LBPluginPrefix != LBPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
@@ -88,7 +89,7 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 }
 
 func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInterceptor {
-	fmt.Println("ServerInterceptor called")
+	fmt.Println("ServerInterceptor called with", InterceptorPluginPrefixPath)
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
 	}
