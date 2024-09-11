@@ -1,4 +1,4 @@
-module github.com/appnet-org/golib/interceptor
+module github.com/appnet-org/go-lib/interceptor
 
 go 1.22.1
 
