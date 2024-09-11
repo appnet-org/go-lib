@@ -88,6 +88,7 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 }
 
 func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInterceptor {
+	fmt.Println("ServerInterceptor called")
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
 	}
@@ -95,11 +96,13 @@ func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInter
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		md, _ := metadata.FromIncomingContext(ctx)
 
-		headers := metadata.Pairs(
-			"appnet-rpc-id", md["appnet-rpc-id"][0],
-			"grpc-status", "0", // this does not seem to work
-		)
-		grpc.SendHeader(ctx, headers)
+		if rpcID, exists := md["appnet-rpc-id"]; exists && len(rpcID) > 0 {
+			headers := metadata.Pairs(
+				"appnet-rpc-id", rpcID[0], // Include "appnet-rpc-id" only if it exists
+				"grpc-status", "0", // This works as normal
+			)
+			grpc.SendHeader(ctx, headers)
+		}
 
 		if currentServerChain == nil {
 			return handler(ctx, req)
