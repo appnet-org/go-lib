@@ -16,7 +16,7 @@ import (
 func handler(writer http.ResponseWriter, request *http.Request) {
 	// requestBody := strings.Replace(request.URL.String(), "/", "", -1)
 	requestBody := request.URL.Query().Get("key")
-	fmt.Printf("Frontend got request with key: %s\n", requestBody)
+	fmt.Printf("Frontend got request with key: %s !\n", requestBody)
 
 	var conn *grpc.ClientConn
 
