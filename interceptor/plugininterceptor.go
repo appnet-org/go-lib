@@ -61,7 +61,7 @@ func init() {
 }
 
 func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) grpc.UnaryClientInterceptor {
-	// fmt.Println("ClientInterceptor called with", InterceptorPluginPrefixPath, LBPluginPrefixPath)
+	fmt.Println("ClientInterceptor called with", InterceptorPluginPrefixPath, LBPluginPrefixPath)
 	// Interceptor and lb plugins should be compiled/updated at the same time
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath || LBPluginPrefix != LBPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
@@ -89,7 +89,7 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 }
 
 func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInterceptor {
-	// fmt.Println("ServerInterceptor called with", InterceptorPluginPrefixPath)
+	fmt.Println("ServerInterceptor called with", InterceptorPluginPrefixPath)
 	if InterceptorPluginPrefix != InterceptorPluginPrefixPath {
 		updateChains(InterceptorPluginPrefixPath)
 	}
@@ -168,6 +168,7 @@ func updateVersionNumberFromFile(filePath string) {
 // }
 
 func updateChains(prefix string) {
+	fmt.Printf("updateChains called with %s\n", prefix)
 	var highestSeenInterceptor string = highestInterceptorFile
 
 	dir, prefix := filepath.Split(prefix)
@@ -195,6 +196,7 @@ func updateChains(prefix string) {
 
 func loadInterceptorsPlugin(interceptorPluginPath string) interceptInit {
 	// TODO: return err instead of panicking
+	fmt.Printf("Loading plugin: %s\n", interceptorPluginPath)
 	interceptorPlugin, err := plugin.Open(interceptorPluginPath)
 	if err != nil {
 		fmt.Printf("loading error: %v\n", err)
