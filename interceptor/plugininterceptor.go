@@ -168,7 +168,7 @@ func updateVersionNumberFromFile(filePath string) {
 // }
 
 func updateChains(prefix string) {
-	fmt.Printf("updateChains called with %s\n", prefix)
+	// fmt.Printf("updateChains called with %s\n", prefix)
 	var highestSeenInterceptor string = highestInterceptorFile
 
 	dir, prefix := filepath.Split(prefix)
