@@ -2,10 +2,12 @@ package plugininterceptor
 
 import (
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"plugin"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,6 +82,36 @@ func ClientInterceptor(InterceptorPluginPrefixPath, LBPluginPrefixPath string) g
 		// Add config-version header
 		ctx = metadata.AppendToOutgoingContext(ctx, "appnet-config-version", strconv.Itoa(getVersionNumber()))
 
+		// ------------------------------------------------------------------------------------------------
+
+		// Extract metadata from the outgoing context
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			md = metadata.MD{}
+		}
+
+		// Check for the "key" header and process it
+		if keys, exists := md["key"]; exists && len(keys) > 0 {
+			key := keys[0]
+			// Match the pattern "header-xxx"
+			re := regexp.MustCompile(`^header-(\d+)$`)
+			matches := re.FindStringSubmatch(key)
+			if len(matches) == 2 {
+				// Parse the number of headers to add
+				numHeaders, err := strconv.Atoi(matches[1])
+				if err == nil && numHeaders > 0 {
+					// Generate random headers
+					for i := 0; i < numHeaders; i++ {
+						headerName := "appnet-header-" + strconv.FormatUint(rand.Uint64N(10000), 10)
+						headerValue := "appnet-value-" + strconv.FormatUint(rand.Uint64N(10000), 10)
+						ctx = metadata.AppendToOutgoingContext(ctx, headerName, headerValue)
+					}
+				}
+			}
+		}
+
+		// ------------------------------------------------------------------------------------------------
+
 		if currentClientChain == nil {
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
@@ -97,11 +129,34 @@ func ServerInterceptor(InterceptorPluginPrefixPath string) grpc.UnaryServerInter
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		md, _ := metadata.FromIncomingContext(ctx)
 
+		log.Println("Incoming Metadata (Headers):")
+		for key, values := range md {
+			log.Printf("  %s: %v", key, values)
+		}
+
 		if rpcID, exists := md["appnet-rpc-id"]; exists && len(rpcID) > 0 {
 			headers := metadata.Pairs(
 				"appnet-rpc-id", rpcID[0], // Include "appnet-rpc-id" only if it exists
 				"grpc-status", "0", // This works as normal
 			)
+
+			// ------------------------------------------------------------------------------------------------
+
+			// Include all headers that match the "appnet-header-xxx" pattern from the request
+			for key, values := range md {
+				if len(values) > 0 && strings.HasPrefix(key, "appnet-header") {
+					headers.Append(key, values[0])
+				}
+			}
+
+			// Print headers before sending
+			log.Println("Headers to be sent:")
+			for key, values := range headers {
+				log.Printf("  %s: %v", key, values)
+			}
+
+			// ------------------------------------------------------------------------------------------------
+
 			grpc.SendHeader(ctx, headers)
 		}
 

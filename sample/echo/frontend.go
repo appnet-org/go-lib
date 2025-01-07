@@ -54,6 +54,12 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 	} else {
 		fmt.Fprintf(writer, "Response from server: %s\n", response.Body)
 		log.Printf("Response from server: %s", response.Body)
+
+		// Print the response headers (metadata)
+		log.Println("Response headers:")
+		for key, values := range header {
+			log.Printf("  %s: %v", key, values)
+		}
 	}
 }
 

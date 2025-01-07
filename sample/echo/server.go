@@ -12,6 +12,7 @@ import (
 	interceptor "github.com/appnet-org/golib/interceptor"
 	echo "github.com/appnet-org/golib/sample/echo-pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type server struct {
@@ -22,6 +23,16 @@ type server struct {
 func (s *server) Echo(ctx context.Context, x *echo.Msg) (*echo.Msg, error) {
 	// Atomically increment the request count
 	atomic.AddUint64(&s.requestCount, 1)
+
+	// Log the HTTP headers received
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		log.Println("Received HTTP Headers:")
+		for key, values := range md {
+			log.Printf("  %s: %v", key, values)
+		}
+	} else {
+		log.Println("No metadata (HTTP headers) received.")
+	}
 
 	log.Printf("Server got: [%s]", x.GetBody())
 
