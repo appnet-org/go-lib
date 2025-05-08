@@ -6,5 +6,5 @@ This is a simple Echo server built using Go and gRPC.
 - `go build -o server server.go`
 - `go build -o frontend frontend.go`
 
-## Build Application nd Push to Dockerhub
+## Build Application and Push to Dockerhub
 - `bash build_images.sh`  (Remember to run `docker login` and change your username)
